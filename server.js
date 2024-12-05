@@ -4,11 +4,11 @@ const bodyParser = require('body-parser');
 const sequelize = require('./config/config');
 const cors = require('cors');
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 8080;
 
 
 // Configurar CORS
-app.use(cors({ origin: 'http://localhost:3000' }));
+app.use(cors({ origin: process.env.CORS_V }));
 
 // Middleware
 app.use(bodyParser.json());
