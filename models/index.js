@@ -2,15 +2,15 @@ const Sequelize = require('sequelize');
 const sequelize = require('../config/config');
 
 // Importar modelos existentes
-const User = require('./User');
-const Appointment = require('./Appointment');
-const Schedule = require('./Schedule');
-const Payment = require('./Payment');
+const User = require('./User.js');
+const Appointment = require('./Appointment.js');
+const Schedule = require('./Schedule.js');
+const Payment = require('./Payment.js');
 const Report = require('./Report');
-const Complaint = require('./Complaint');
-const Notification = require("./Notification");
+const Complaint = require('./Complaint.js');
+const Notification = require("./Notification.js");
 // Importar nuevo modelo
-const Evaluation = require('./Evaluation')(sequelize);
+const Evaluation = require('./Evaluation.js')(sequelize);
 
 // Relación de citas
 User.hasMany(Appointment, { foreignKey: 'professional_id', as: 'professional_appointments' });
