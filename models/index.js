@@ -4,7 +4,7 @@ const sequelize = require('../config/config');
 // Importar modelos existentes
 const User = require('./User');
 const Appointment = require('./Appointment');
-const Schedule = require('./Schedule');
+const Schedule = require('/Schedule');
 const Payment = require('./payment');
 const Report = require('./report');
 const Complaint = require('./Complaint');
