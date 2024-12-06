@@ -8,7 +8,11 @@ const PORT = process.env.PORT;
 
 
 // Configurar CORS
-app.use(cors({ origin: process.env.CORS_V }));
+app.use(cors({
+  origin: process.env.CORS_V || '*', // Permitir todas las conexiones en desarrollo
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true,
+}));
 
 // Middleware
 app.use(bodyParser.json());
