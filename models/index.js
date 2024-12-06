@@ -2,13 +2,13 @@ const Sequelize = require('sequelize');
 const sequelize = require('../config/config');
 
 // Importar modelos existentes
-const User = require('./User.js');
-const Appointment = require('./Appointment.js');
-const Schedule = require('./Schedule.js');
-const Payment = require('./payment.js');
+const User = require('./User');
+const Appointment = require('./Appointment');
+const Schedule = require('./Schedule');
+const Payment = require('./payment');
 const Report = require('./report');
-const Complaint = require('./Complaint.js');
-const Notification = require("./Notification.js");
+const Complaint = require('./Complaint');
+const Notification = require("./Notification");
 // Importar nuevo modelo
 const Evaluation = require('./Evaluation.js')(sequelize);
 
