@@ -1,7 +1,7 @@
 const axios = require("axios");
 const crypto = require("crypto");
 const Appointment = require("../models/Appointment");
-const Payment = require("../models/Payment"); // Asegúrate de tener definido este modelo
+const Payment = require("../models/payment"); // Asegúrate de tener definido este modelo
 
 const FLOW_API_KEY = process.env.FLOW_API_KEY;
 const FLOW_SECRET_KEY = process.env.FLOW_SECRET_KEY;
