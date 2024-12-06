@@ -6,7 +6,7 @@ const User = require('./User.js');
 const Appointment = require('./Appointment.js');
 const Schedule = require('./schedule.js');
 const Payment = require('./payment.js');
-const Report = require('./Report');
+const Report = require('./report');
 const Complaint = require('./Complaint.js');
 const Notification = require("./Notification.js");
 // Importar nuevo modelo
