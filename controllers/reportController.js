@@ -2,7 +2,7 @@
 
 const Appointment = require('../models/Appointment');
 const User = require('../models/User');
-const Schedule = require('../models/Schedule');
+const Schedule = require('../models/schedule');
 const { Op, Sequelize, fn, literal } = require('sequelize');
 
 const reportController = {};

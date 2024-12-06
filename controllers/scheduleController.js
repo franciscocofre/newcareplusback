@@ -1,7 +1,7 @@
 // backend/controllers/scheduleController.js
 const Appointment = require('../models/Appointment'); 
 const { Op } = require('sequelize'); 
-const Schedule = require('../models/Schedule');
+const Schedule = require('../models/schedule');
 
 const scheduleController = {};
 
