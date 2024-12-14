@@ -1,7 +1,7 @@
 const axios = require("axios");
 const crypto = require("crypto");
 const Appointment = require("../models/Appointment");
-const Payment = require("../models/payment");
+const Payment = require("../models/Payment");
 
 const FLOW_API_KEY = process.env.FLOW_API_KEY;
 const FLOW_SECRET_KEY = process.env.FLOW_SECRET_KEY;
@@ -37,17 +37,8 @@ paymentController.createPaymentLink = async (req, res) => {
       urlReturn: `${FRONTEND_URL}/app/patient/page.js`,
     };
 
-    if (!params.urlConfirmation.startsWith("https://")) {
-      return res
-        .status(400)
-        .json({ error: "La URL de confirmación debe ser accesible públicamente." });
-    }
-
-    if (!params.urlReturn.startsWith("https://")) {
-      return res
-        .status(400)
-        .json({ error: "La URL de retorno debe ser accesible públicamente." });
-    }
+    // Log detallado para depuración
+    console.log("Parámetros enviados a Flow:", params);
 
     // Ordenar los parámetros por clave para generar la firma
     const orderedParams = Object.keys(params)
@@ -55,13 +46,11 @@ paymentController.createPaymentLink = async (req, res) => {
       .map((key) => `${key}=${params[key]}`)
       .join("&");
 
-    // Generar la firma (HMAC-SHA256)
     const signature = crypto
       .createHmac("sha256", FLOW_SECRET_KEY)
       .update(orderedParams)
       .digest("base64");
 
-    console.log("Parámetros enviados a Flow:", params);
     console.log("Parámetros ordenados para la firma:", orderedParams);
     console.log("Firma generada:", signature);
 
