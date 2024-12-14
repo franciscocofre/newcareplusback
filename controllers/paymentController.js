@@ -1,15 +1,16 @@
 const axios = require("axios");
 const crypto = require("crypto");
 const Appointment = require("../models/Appointment");
-const Payment = require("../models/payment"); // Asegúrate de tener definido este modelo
+const Payment = require("../models/payment");
 
 const FLOW_API_KEY = process.env.FLOW_API_KEY;
 const FLOW_SECRET_KEY = process.env.FLOW_SECRET_KEY;
 const FLOW_BASE_URL = process.env.FLOW_BASE_URL;
+const BACKEND_URL = process.env.BACKEND_URL;
+const FRONTEND_URL = process.env.FRONTEND_URL;
 
 const paymentController = {};
 
-// Crear link de pago con Flow
 // Crear link de pago con Flow
 paymentController.createPaymentLink = async (req, res) => {
   try {
@@ -30,21 +31,21 @@ paymentController.createPaymentLink = async (req, res) => {
     const params = {
       apiKey: FLOW_API_KEY,
       commerceOrder: `ORD-${appointment.id}-${Date.now()}`, // Identificador único
-      subject: `Pago por cita médica - ID ${appointment.id}`,
-      amount: parseFloat(appointment.total_price).toFixed(2), // Monto como número con 2 decimales
-      email: req.user.email, // Asegúrate de que `req.user` esté correctamente configurado
-      urlConfirmation: `${process.env.BACKEND_URL}/api/payments/confirm-payment`,
-      urlReturn: `${process.env.FRONTEND_URL}/payment-success`,
+      subject: `Pago por cita médica - ID ${appointment.id}`, // Descripción
+      amount: parseFloat(appointment.total_price).toFixed(2), // Monto con 2 decimales
+      email: req.user.email, // Correo del usuario
+      urlConfirmation: `${BACKEND_URL}/api/payments/confirm-payment`,
+      urlReturn: `${FRONTEND_URL}/payment-success`,
     };
 
-    // Verificar que las URLs sean accesibles
-    if (!params.urlConfirmation.startsWith("http")) {
+    // Verificar que las URLs sean válidas
+    if (!params.urlConfirmation.startsWith("https://")) {
       return res
         .status(400)
         .json({ error: "La URL de confirmación debe ser accesible públicamente." });
     }
 
-    if (!params.urlReturn.startsWith("http")) {
+    if (!params.urlReturn.startsWith("https://")) {
       return res
         .status(400)
         .json({ error: "La URL de retorno debe ser accesible públicamente." });
@@ -68,6 +69,14 @@ paymentController.createPaymentLink = async (req, res) => {
       s: signature, // Adjuntar la firma
     });
 
+    // Guardar el pago en la base de datos
+    await Payment.create({
+      appointment_id: appointment_id,
+      payment_method: "Flow",
+      payment_status: "pending",
+      amount: params.amount,
+    });
+
     // Devolver el link de pago generado
     if (response.data && response.data.url) {
       res.status(201).json({ paymentLink: response.data.url });
@@ -86,11 +95,10 @@ paymentController.createPaymentLink = async (req, res) => {
   }
 };
 
-
 // Confirmar el pago recibido de Flow
 paymentController.confirmPayment = async (req, res) => {
   try {
-    const { commerceOrder } = req.body;
+    const { commerceOrder, status } = req.body;
 
     if (!commerceOrder) {
       return res.status(400).json({ error: "Orden de comercio no proporcionada." });
@@ -103,7 +111,21 @@ paymentController.confirmPayment = async (req, res) => {
       return res.status(404).json({ error: "Cita no encontrada." });
     }
 
-    appointment.status = "confirmed";
+    // Actualizar estado de la cita y el pago según el estado recibido
+    if (status === 1) {
+      appointment.status = "confirmed";
+      await Payment.update(
+        { payment_status: "completed" },
+        { where: { appointment_id: appointmentId } }
+      );
+    } else {
+      appointment.status = "cancelled";
+      await Payment.update(
+        { payment_status: "failed" },
+        { where: { appointment_id: appointmentId } }
+      );
+    }
+
     await appointment.save();
 
     res.status(200).json({ message: "Pago confirmado y cita actualizada." });
@@ -119,7 +141,9 @@ paymentController.confirmPayment = async (req, res) => {
 // Obtener todos los pagos (solo para administradores)
 paymentController.getAllPayments = async (req, res) => {
   try {
-    const payments = await Payment.findAll();
+    const payments = await Payment.findAll({
+      include: [{ model: Appointment, as: "appointment" }],
+    });
     res.json(payments);
   } catch (error) {
     res
