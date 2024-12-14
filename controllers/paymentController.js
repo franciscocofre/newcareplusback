@@ -25,14 +25,13 @@ paymentController.createPaymentLink = async (req, res) => {
       return res.status(404).json({ error: "Cita no encontrada." });
     }
 
-    // Convertir el monto a entero y luego a cadena
-    const amount = String(Math.round(appointment.total_price));
+    const amount = Math.round(appointment.total_price); // Convertir a entero
 
     const params = {
       apiKey: FLOW_API_KEY,
       commerceOrder: `ORD-${appointment.id}-${Date.now()}`,
       subject: `Pago por cita médica - ID ${appointment.id}`,
-      amount: amount,
+      amount: amount, // Enviar como entero
       email: req.user?.email || "test@example.com",
       urlConfirmation: `${BACKEND_URL}/api/payments/confirm-payment`,
       urlReturn: `${FRONTEND_URL}/app/patient/page.js`,
@@ -50,11 +49,13 @@ paymentController.createPaymentLink = async (req, res) => {
         .json({ error: "La URL de retorno debe ser accesible públicamente." });
     }
 
+    // Ordenar los parámetros por clave para generar la firma
     const orderedParams = Object.keys(params)
       .sort()
       .map((key) => `${key}=${params[key]}`)
       .join("&");
 
+    // Generar la firma (HMAC-SHA256)
     const signature = crypto
       .createHmac("sha256", FLOW_SECRET_KEY)
       .update(orderedParams)
@@ -64,6 +65,7 @@ paymentController.createPaymentLink = async (req, res) => {
     console.log("Parámetros ordenados para la firma:", orderedParams);
     console.log("Firma generada:", signature);
 
+    // Realizar la solicitud a Flow
     const response = await axios.post(`${FLOW_BASE_URL}/payment/create`, {
       ...params,
       s: signature,
