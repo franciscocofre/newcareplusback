@@ -16,32 +16,28 @@ paymentController.createPaymentLink = async (req, res) => {
   try {
     const { appointment_id } = req.body;
 
-    // Validar appointment_id
     if (!appointment_id) {
       return res.status(400).json({ error: "El ID de la cita no es válido." });
     }
 
-    // Obtener la cita de la base de datos
     const appointment = await Appointment.findByPk(appointment_id);
     if (!appointment) {
       return res.status(404).json({ error: "Cita no encontrada." });
     }
 
-    // Convertir monto a entero (sin decimales)
-    const amount = Math.round(appointment.total_price); // Redondear el monto
+    // Convertir el monto a entero y luego a cadena
+    const amount = String(Math.round(appointment.total_price));
 
-    // Parámetros requeridos para Flow
     const params = {
       apiKey: FLOW_API_KEY,
-      commerceOrder: `ORD-${appointment.id}-${Date.now()}`, // Identificador único
-      subject: `Pago por cita médica - ID ${appointment.id}`, // Descripción
-      amount: amount, // Monto como entero
-      email: req.user?.email || "test@example.com", // Correo del usuario (usar un valor predeterminado para pruebas)
-      urlConfirmation: `${BACKEND_URL}/api/payments/confirm-payment`, // Confirmación de Flow
-      urlReturn: `${FRONTEND_URL}/payment-success`, // Redirección al frontend
+      commerceOrder: `ORD-${appointment.id}-${Date.now()}`,
+      subject: `Pago por cita médica - ID ${appointment.id}`,
+      amount: amount,
+      email: req.user?.email || "test@example.com",
+      urlConfirmation: `${BACKEND_URL}/api/payments/confirm-payment`,
+      urlReturn: `${FRONTEND_URL}/app/patient/page.js`,
     };
 
-    // Verificar que las URLs sean válidas
     if (!params.urlConfirmation.startsWith("https://")) {
       return res
         .status(400)
@@ -54,38 +50,34 @@ paymentController.createPaymentLink = async (req, res) => {
         .json({ error: "La URL de retorno debe ser accesible públicamente." });
     }
 
-    // Ordenar los parámetros por clave para generar la firma
     const orderedParams = Object.keys(params)
       .sort()
       .map((key) => `${key}=${params[key]}`)
       .join("&");
 
-    // Generar la firma (HMAC-SHA256)
     const signature = crypto
       .createHmac("sha256", FLOW_SECRET_KEY)
       .update(orderedParams)
       .digest("base64");
 
     console.log("Parámetros enviados a Flow:", params);
+    console.log("Parámetros ordenados para la firma:", orderedParams);
     console.log("Firma generada:", signature);
 
-    // Realizar la solicitud a Flow
     const response = await axios.post(`${FLOW_BASE_URL}/payment/create`, {
       ...params,
-      s: signature, // Adjuntar la firma
+      s: signature,
     });
 
     console.log("Respuesta de Flow:", response.data);
 
-    // Guardar el pago en la base de datos
     await Payment.create({
       appointment_id: appointment_id,
       payment_method: "Flow",
       payment_status: "pending",
-      amount: params.amount,
+      amount: amount,
     });
 
-    // Devolver el link de pago generado
     if (response.data && response.data.url) {
       res.status(201).json({ paymentLink: response.data.url });
     } else {
