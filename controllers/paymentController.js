@@ -1,7 +1,7 @@
 const axios = require("axios");
 const crypto = require("crypto");
 const Appointment = require("../models/Appointment");
-const Payment = require("../models/payment");
+const Payment = require("../models/Payment");
 
 const FLOW_API_KEY = process.env.FLOW_API_KEY;
 const FLOW_SECRET_KEY = process.env.FLOW_SECRET_KEY;
@@ -24,7 +24,7 @@ paymentController.createPaymentLink = async (req, res) => {
     // Obtener la cita de la base de datos
     const appointment = await Appointment.findByPk(appointment_id);
     if (!appointment) {
-      return res.status(404).json({ error: "Cita no encontrada" });
+      return res.status(404).json({ error: "Cita no encontrada." });
     }
 
     // Parámetros requeridos para Flow
@@ -34,8 +34,8 @@ paymentController.createPaymentLink = async (req, res) => {
       subject: `Pago por cita médica - ID ${appointment.id}`, // Descripción
       amount: parseFloat(appointment.total_price).toFixed(2), // Monto con 2 decimales
       email: req.user.email, // Correo del usuario
-      urlConfirmation: `${BACKEND_URL}/api/payments/confirm-payment`,
-      urlReturn: `${FRONTEND_URL}/payment-success`,
+      urlConfirmation: `${BACKEND_URL}/api/payments/confirm-payment`, // Confirmación de Flow
+      urlReturn: `${FRONTEND_URL}/payment-success`, // Redirección al frontend
     };
 
     // Verificar que las URLs sean válidas
