@@ -27,13 +27,16 @@ paymentController.createPaymentLink = async (req, res) => {
       return res.status(404).json({ error: "Cita no encontrada." });
     }
 
+    // Convertir monto a entero (sin decimales)
+    const amount = Math.round(appointment.total_price); // Redondear el monto
+
     // Parámetros requeridos para Flow
     const params = {
       apiKey: FLOW_API_KEY,
       commerceOrder: `ORD-${appointment.id}-${Date.now()}`, // Identificador único
       subject: `Pago por cita médica - ID ${appointment.id}`, // Descripción
-      amount: parseFloat(appointment.total_price).toFixed(2), // Monto con 2 decimales
-      email: req.user.email, // Correo del usuario
+      amount: amount, // Monto como entero
+      email: req.user?.email || "test@example.com", // Correo del usuario (usar un valor predeterminado para pruebas)
       urlConfirmation: `${BACKEND_URL}/api/payments/confirm-payment`, // Confirmación de Flow
       urlReturn: `${FRONTEND_URL}/payment-success`, // Redirección al frontend
     };
@@ -63,11 +66,16 @@ paymentController.createPaymentLink = async (req, res) => {
       .update(orderedParams)
       .digest("base64");
 
+    console.log("Parámetros enviados a Flow:", params);
+    console.log("Firma generada:", signature);
+
     // Realizar la solicitud a Flow
     const response = await axios.post(`${FLOW_BASE_URL}/payment/create`, {
       ...params,
       s: signature, // Adjuntar la firma
     });
+
+    console.log("Respuesta de Flow:", response.data);
 
     // Guardar el pago en la base de datos
     await Payment.create({
