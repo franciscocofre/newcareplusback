@@ -25,9 +25,9 @@ paymentController.createPaymentLink = async (req, res) => {
       return res.status(404).json({ error: "Cita no encontrada." });
     }
 
-    const amount = Math.round(appointment.total_price); // Convertir a entero
+    const amount = Math.round(appointment.total_price);
 
-    // Parámetros requeridos (reducidos al mínimo)
+    // Parámetros requeridos
     const params = {
       apiKey: FLOW_API_KEY,
       commerceOrder: `ORD-${appointment.id}-${Date.now()}`,
@@ -38,10 +38,10 @@ paymentController.createPaymentLink = async (req, res) => {
       urlReturn: `${FRONTEND_URL}/app/patient/page.js`,
     };
 
-    // Generar firma con parámetros ordenados alfabéticamente
+    // Generar la firma (sin codificar los parámetros)
     const orderedParams = Object.keys(params)
       .sort()
-      .map((key) => `${key}=${encodeURIComponent(params[key])}`) // Codificar parámetros
+      .map((key) => `${key}=${params[key]}`) // Sin encoding
       .join("&");
 
     console.log("Parámetros ordenados para la firma:", orderedParams);
@@ -53,7 +53,7 @@ paymentController.createPaymentLink = async (req, res) => {
 
     console.log("Firma generada:", signature);
 
-    // Enviar solicitud a Flow en formato x-www-form-urlencoded
+    // Realizar la solicitud a Flow
     const response = await axios.post(
       `${FLOW_BASE_URL}/payment/create`,
       new URLSearchParams({ ...params, s: signature }).toString(),
@@ -87,6 +87,7 @@ paymentController.createPaymentLink = async (req, res) => {
     });
   }
 };
+
 
 // Confirmar el pago recibido de Flow
 paymentController.confirmPayment = async (req, res) => {
