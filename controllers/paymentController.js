@@ -38,20 +38,16 @@ paymentController.createPaymentLink = async (req, res) => {
       urlReturn: `${FRONTEND_URL}/app/patient/page.js`,
     };
 
-    // Generar la firma (sin codificar los parámetros)
+    // Generar la firma
     const orderedParams = Object.keys(params)
       .sort()
-      .map((key) => `${key}=${params[key]}`) // Sin encoding
-      .join("&");
-
-    console.log("Parámetros ordenados para la firma:", orderedParams);
+      .map((key) => `${key}${params[key]}`)
+      .join("");
 
     const signature = crypto
       .createHmac("sha256", FLOW_SECRET_KEY)
       .update(orderedParams)
       .digest("base64");
-
-    console.log("Firma generada:", signature);
 
     // Realizar la solicitud a Flow
     const response = await axios.post(
@@ -62,8 +58,6 @@ paymentController.createPaymentLink = async (req, res) => {
       }
     );
 
-    console.log("Respuesta de Flow:", response.data);
-
     await Payment.create({
       appointment_id: appointment_id,
       payment_method: "Flow",
@@ -72,7 +66,9 @@ paymentController.createPaymentLink = async (req, res) => {
     });
 
     if (response.data && response.data.url) {
-      res.status(201).json({ paymentLink: `${response.data.url}?token=${response.data.token}` });
+      res
+        .status(201)
+        .json({ paymentLink: `${response.data.url}?token=${response.data.token}` });
     } else {
       res.status(500).json({ error: "No se pudo generar el link de pago." });
     }
@@ -88,16 +84,33 @@ paymentController.createPaymentLink = async (req, res) => {
   }
 };
 
-
 // Confirmar el pago recibido de Flow
 paymentController.confirmPayment = async (req, res) => {
   try {
-    const { commerceOrder, status } = req.body;
+    const { commerceOrder, token } = req.body;
 
-    if (!commerceOrder) {
-      return res.status(400).json({ error: "Orden de comercio no proporcionada." });
+    if (!commerceOrder || !token) {
+      return res.status(400).json({ error: "Datos insuficientes." });
     }
 
+    const orderedParams = `apiKey${FLOW_API_KEY}token${token}`;
+    const signature = crypto
+      .createHmac("sha256", FLOW_SECRET_KEY)
+      .update(orderedParams)
+      .digest("base64");
+
+    const response = await axios.get(
+      `${FLOW_BASE_URL}/payment/getStatus`,
+      {
+        params: {
+          apiKey: FLOW_API_KEY,
+          token,
+          s: signature,
+        },
+      }
+    );
+
+    const paymentStatus = response.data.status;
     const appointmentId = commerceOrder.split("-")[1];
 
     const appointment = await Appointment.findByPk(appointmentId);
@@ -105,8 +118,7 @@ paymentController.confirmPayment = async (req, res) => {
       return res.status(404).json({ error: "Cita no encontrada." });
     }
 
-    // Actualizar estado de la cita y el pago según el estado recibido
-    if (status === 1) {
+    if (paymentStatus === 1) {
       appointment.status = "confirmed";
       await Payment.update(
         { payment_status: "completed" },
@@ -121,7 +133,6 @@ paymentController.confirmPayment = async (req, res) => {
     }
 
     await appointment.save();
-
     res.status(200).json({ message: "Pago confirmado y cita actualizada." });
   } catch (error) {
     console.error("Error al confirmar el pago:", error.message);
