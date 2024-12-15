@@ -38,17 +38,18 @@ paymentController.createPaymentLink = async (req, res) => {
       urlReturn: `${FRONTEND_URL}/app/patient/page.js`,
     };
 
-    // Generar la firma (sin codificar los parámetros)
-    const orderedParams = Object.keys(params)
-      .sort()
-      .map((key) => `${key}=${params[key]}`); // Sin encoding
-     // .join("&");
+    // Convertir objeto a string concatenado
+    const concatenatedParams = Object.keys(params)
+      .sort() // Ordenar claves alfabéticamente
+      .map((key) => `${key}${params[key]}`) // Concatenar clave y valor
+      .join(""); // Unir todo en un string
 
-    console.log("Parámetros ordenados para la firma:", orderedParams);
+    console.log("Parámetros concatenados:", concatenatedParams);
 
+    // Generar la firma
     const signature = crypto
       .createHmac("sha256", FLOW_SECRET_KEY)
-      .update(orderedParams)
+      .update(concatenatedParams)
       .digest("base64");
 
     console.log("Firma generada:", signature);
@@ -72,7 +73,9 @@ paymentController.createPaymentLink = async (req, res) => {
     });
 
     if (response.data && response.data.url) {
-      res.status(201).json({ paymentLink: `${response.data.url}?token=${response.data.token}` });
+      res
+        .status(201)
+        .json({ paymentLink: `${response.data.url}?token=${response.data.token}` });
     } else {
       res.status(500).json({ error: "No se pudo generar el link de pago." });
     }
@@ -88,14 +91,15 @@ paymentController.createPaymentLink = async (req, res) => {
   }
 };
 
-
 // Confirmar el pago recibido de Flow
 paymentController.confirmPayment = async (req, res) => {
   try {
     const { commerceOrder, status } = req.body;
 
     if (!commerceOrder) {
-      return res.status(400).json({ error: "Orden de comercio no proporcionada." });
+      return res
+        .status(400)
+        .json({ error: "Orden de comercio no proporcionada." });
     }
 
     const appointmentId = commerceOrder.split("-")[1];
