@@ -27,18 +27,18 @@ paymentController.createPaymentLink = async (req, res) => {
 
     const amount = Math.round(appointment.total_price); // Convertir a entero
 
+    // Parámetros requeridos
     const params = {
       apiKey: FLOW_API_KEY,
       commerceOrder: `ORD-${appointment.id}-${Date.now()}`,
       subject: `Pago por cita médica - ID ${appointment.id}`,
-      amount: amount, // Enviar como entero
+      amount: amount, // Monto en número entero
       email: req.user?.email || "test@example.com",
       urlConfirmation: `${BACKEND_URL}/api/payments/confirm-payment`,
       urlReturn: `${FRONTEND_URL}/app/patient/page.js`,
+      currency: "CLP", // Moneda (opcional pero recomendable)
+      paymentMethod: 9, // Todos los métodos de pago
     };
-
-    // Log detallado para depuración
-    console.log("Parámetros enviados a Flow:", params);
 
     // Ordenar los parámetros por clave para generar la firma
     const orderedParams = Object.keys(params)
@@ -46,19 +46,24 @@ paymentController.createPaymentLink = async (req, res) => {
       .map((key) => `${key}=${params[key]}`)
       .join("&");
 
+    // Generar la firma (HMAC-SHA256)
     const signature = crypto
       .createHmac("sha256", FLOW_SECRET_KEY)
       .update(orderedParams)
       .digest("base64");
 
+    console.log("Parámetros enviados a Flow:", params);
     console.log("Parámetros ordenados para la firma:", orderedParams);
     console.log("Firma generada:", signature);
 
-    // Realizar la solicitud a Flow
-    const response = await axios.post(`${FLOW_BASE_URL}/payment/create`, {
-      ...params,
-      s: signature,
-    });
+    // Realizar la solicitud a Flow con el formato correcto
+    const response = await axios.post(
+      `${FLOW_BASE_URL}/payment/create`,
+      new URLSearchParams({ ...params, s: signature }).toString(), // Formato x-www-form-urlencoded
+      {
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      }
+    );
 
     console.log("Respuesta de Flow:", response.data);
 
@@ -70,7 +75,7 @@ paymentController.createPaymentLink = async (req, res) => {
     });
 
     if (response.data && response.data.url) {
-      res.status(201).json({ paymentLink: response.data.url });
+      res.status(201).json({ paymentLink: `${response.data.url}?token=${response.data.token}` });
     } else {
       res.status(500).json({ error: "No se pudo generar el link de pago." });
     }
