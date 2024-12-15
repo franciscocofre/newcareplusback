@@ -32,19 +32,19 @@ paymentController.createPaymentLink = async (req, res) => {
       apiKey: FLOW_API_KEY,
       commerceOrder: `ORD-${appointment.id}-${Date.now()}`,
       subject: `Pago por cita médica - ID ${appointment.id}`,
-      amount: amount, // Monto en número entero
+      amount: amount,
       email: req.user?.email || "test@example.com",
       urlConfirmation: `${BACKEND_URL}/api/payments/confirm-payment`,
       urlReturn: `${FRONTEND_URL}/app/patient/page.js`,
-      currency: "CLP", // Moneda (opcional pero recomendable)
-      paymentMethod: 9, // Todos los métodos de pago
     };
 
-    // Ordenar los parámetros por clave para generar la firma
+    // Ordenar los parámetros por clave alfabética para generar la firma
     const orderedParams = Object.keys(params)
       .sort()
       .map((key) => `${key}=${params[key]}`)
       .join("&");
+
+    console.log("Parámetros ordenados para la firma:", orderedParams);
 
     // Generar la firma (HMAC-SHA256)
     const signature = crypto
@@ -52,8 +52,6 @@ paymentController.createPaymentLink = async (req, res) => {
       .update(orderedParams)
       .digest("base64");
 
-    console.log("Parámetros enviados a Flow:", params);
-    console.log("Parámetros ordenados para la firma:", orderedParams);
     console.log("Firma generada:", signature);
 
     // Realizar la solicitud a Flow con el formato correcto
@@ -90,6 +88,7 @@ paymentController.createPaymentLink = async (req, res) => {
     });
   }
 };
+
 
 // Confirmar el pago recibido de Flow
 paymentController.confirmPayment = async (req, res) => {
