@@ -33,7 +33,7 @@ paymentController.createPaymentLink = async (req, res) => {
     const params = {
       apiKey: FLOW_API_KEY,
       commerceOrder: `ORD-${appointment.id}-${Date.now()}`,
-      subject: `Pago por cita médica - ID ${appointment.id}`,
+      //subject: `Pago por cita médica - ID ${appointment.id}`,
       amount: amount,
       email: req.user?.email || "test@example.com",
       urlConfirmation: `${BACKEND_URL}/api/payments/confirm-payment`,
