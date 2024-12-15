@@ -17,11 +17,13 @@ paymentController.createPaymentLink = async (req, res) => {
     const { appointment_id } = req.body;
 
     if (!appointment_id) {
+      console.error("Error: El ID de la cita no es válido.");
       return res.status(400).json({ error: "El ID de la cita no es válido." });
     }
 
     const appointment = await Appointment.findByPk(appointment_id);
     if (!appointment) {
+      console.error("Error: Cita no encontrada.");
       return res.status(404).json({ error: "Cita no encontrada." });
     }
 
@@ -31,18 +33,18 @@ paymentController.createPaymentLink = async (req, res) => {
     const params = {
       apiKey: FLOW_API_KEY,
       commerceOrder: `ORD-${appointment.id}-${Date.now()}`,
-      //subject: `Pagoporcitamédica - ID ${appointment.id}`,
+      subject: `Pago por cita médica - ID ${appointment.id}`,
       amount: amount,
       email: req.user?.email || "test@example.com",
       urlConfirmation: `${BACKEND_URL}/api/payments/confirm-payment`,
       urlReturn: `${FRONTEND_URL}/app/patient/page.js`,
     };
 
-    // Convertir objeto a string concatenado
+    // Generar string concatenado para la firma
     const concatenatedParams = Object.keys(params)
-      .sort() // Ordenar claves alfabéticamente
-      .map((key) => `${key}${params[key]}`) // Concatenar clave y valor
-      .join(""); // Unir todo en un string
+      .sort()
+      .map((key) => `${key}${params[key]}`)
+      .join("");
 
     console.log("Parámetros concatenados:", concatenatedParams);
 
@@ -52,12 +54,16 @@ paymentController.createPaymentLink = async (req, res) => {
       .update(concatenatedParams)
       .digest("base64");
 
+    console.log("Clave secreta utilizada:", FLOW_SECRET_KEY);
     console.log("Firma generada:", signature);
 
     // Realizar la solicitud a Flow
+    const flowRequestData = new URLSearchParams({ ...params, s: signature }).toString();
+    console.log("Datos enviados en la solicitud a Flow:", flowRequestData);
+
     const response = await axios.post(
       `${FLOW_BASE_URL}/payment/create`,
-      new URLSearchParams({ ...params, s: signature }).toString(),
+      flowRequestData,
       {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
       }
@@ -65,6 +71,7 @@ paymentController.createPaymentLink = async (req, res) => {
 
     console.log("Respuesta de Flow:", response.data);
 
+    // Crear registro del pago
     await Payment.create({
       appointment_id: appointment_id,
       payment_method: "Flow",
@@ -73,10 +80,9 @@ paymentController.createPaymentLink = async (req, res) => {
     });
 
     if (response.data && response.data.url) {
-      res
-        .status(201)
-        .json({ paymentLink: `${response.data.url}?token=${response.data.token}` });
+      res.status(201).json({ paymentLink: `${response.data.url}?token=${response.data.token}` });
     } else {
+      console.error("Error: No se pudo generar el link de pago.");
       res.status(500).json({ error: "No se pudo generar el link de pago." });
     }
   } catch (error) {
@@ -84,6 +90,9 @@ paymentController.createPaymentLink = async (req, res) => {
       "Error al crear link de pago:",
       error.response?.data || error.message
     );
+    if (error.response) {
+      console.error("Detalles del error de Axios:", error.response.data);
+    }
     res.status(500).json({
       error: "Error al procesar el pago",
       details: error.response?.data || error.message,
@@ -97,15 +106,15 @@ paymentController.confirmPayment = async (req, res) => {
     const { commerceOrder, status } = req.body;
 
     if (!commerceOrder) {
-      return res
-        .status(400)
-        .json({ error: "Orden de comercio no proporcionada." });
+      console.error("Error: Orden de comercio no proporcionada.");
+      return res.status(400).json({ error: "Orden de comercio no proporcionada." });
     }
 
     const appointmentId = commerceOrder.split("-")[1];
 
     const appointment = await Appointment.findByPk(appointmentId);
     if (!appointment) {
+      console.error("Error: Cita no encontrada.");
       return res.status(404).json({ error: "Cita no encontrada." });
     }
 
@@ -144,6 +153,7 @@ paymentController.getAllPayments = async (req, res) => {
     });
     res.json(payments);
   } catch (error) {
+    console.error("Error al obtener los pagos:", error.message);
     res
       .status(400)
       .json({ error: "Error al obtener los pagos", details: error.message });
